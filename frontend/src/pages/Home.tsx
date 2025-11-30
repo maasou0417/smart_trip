@@ -1,15 +1,29 @@
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 
 const HomePage = () => {
   const { user } = useAuth();
 
   return (
-    <div>
-      <h1>Welcome to Smart Trip! 🗺️</h1>
+    <div className="home-hero">
+      <h1>Plan Your Perfect Trip ✈️</h1>
+      <p>
+        Organize your adventures with ease. Create itineraries, track activities,
+        and make every journey unforgettable with Smart Trip.
+      </p>
       {user ? (
-        <p>Hello, {user.name}! Ready to plan your next adventure?</p>
+        <Link to="/trips" className="btn-primary">
+          View My Trips
+        </Link>
       ) : (
-        <p>Please login or register to start planning your trips.</p>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem' }}>
+          <Link to="/register" className="btn-primary">
+            Get Started
+          </Link>
+          <Link to="/login" className="btn-secondary">
+            Sign In
+          </Link>
+        </div>
       )}
     </div>
   );
