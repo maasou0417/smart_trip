@@ -1,50 +1,38 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import Navbar from "./components/Navbar";
 import HomePage from "./pages/Home";
 import LoginPage from "./pages/Login";
 import RegisterPage from "./pages/Register";
 import TripsPage from "./pages/Trips";
+import CreateTripPage from "./pages/CreateTrip";
+import TripDetailsPage from "./pages/TripDetails";
 import type { JSX } from "react";
-import "./index.css"
+import "./index.css";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { user, isLoading } = useAuth();
-  if (isLoading) return <p>Loading...</p>;
+  
+  if (isLoading) {
+    return (
+      <div className="page-loader">
+        <div className="loading-spinner loading-spinner-large">
+          <div className="spinner"></div>
+        </div>
+      </div>
+    );
+  }
+  
   if (!user) return <Navigate to="/login" />;
   return children;
 };
 
-// NavLinks must be inside AuthProvider
-const NavLinks = () => {
-  const { user, logout } = useAuth();
-  return (
-    <div className="nav-links">
-      <Link to="/">Home</Link>
-      {user ? (
-        <>
-          <Link to="/trips">My Trips</Link>
-          <button onClick={logout}>Logout</button>
-          <span>Hi, {user.name}!</span>
-        </>
-      ) : (
-        <>
-          <Link to="/login">Login</Link>
-          <Link to="/register">Register</Link>
-        </>
-      )}
-    </div>
-  );
-};
-
-// AppContent must be inside AuthProvider to use hooks
+// AppContent must be inside AuthProvider
 const AppContent = () => {
   return (
     <div className="app">
-      <nav>
-        <h2>Smart Trip</h2>
-        <NavLinks />
-      </nav>
+      <Navbar />
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -55,6 +43,22 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <TripsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trips/new"
+            element={
+              <ProtectedRoute>
+                <CreateTripPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trips/:id"
+            element={
+              <ProtectedRoute>
+                <TripDetailsPage />
               </ProtectedRoute>
             }
           />
