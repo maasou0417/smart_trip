@@ -1,15 +1,15 @@
 
 :root {
   /* Primary Colors - Warm & Inviting */
-  --primary: #FF6B35;
-  --primary-dark: #E8593A;
-  --primary-light: #FF8C5F;
+  --primary: #3fc3cc;
+  --primary-dark: #2f8cb8;
+  --primary-light: #3294c2;
   
   /* Nature-inspired Secondary Colors */
   --secondary: #4ECDC4;
-  --accent: #FFE66D;
+  --accent: #0a9768;
   --success: #2ECC71;
-  --warning: #F39C12;
+  --warning: #1d9191;
   
   /* Neutral Colors */
   --dark: #2D3142;
@@ -19,9 +19,9 @@
   --white: #FFFFFF;
   
   /* Gradients */
-  --gradient-warm: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
-  --gradient-sunset: linear-gradient(135deg, #FA709A 0%, #FEE140 100%);
-  --gradient-ocean: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-warm: linear-gradient(135deg, #57caa8 0%, #052d52 100%);
+  --gradient-sunset: linear-gradient(135deg, #13c0b7 0%, #15ca60 100%);
+  --gradient-ocean: linear-gradient(135deg, #667eea 0%, #32b3a8 100%);
   --gradient-forest: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   
   /* Shadows */
