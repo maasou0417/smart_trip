@@ -20,7 +20,7 @@ const api = axios.create({
   },
 });
 
-// Lägg till token i varje request automatiskt
+// Add token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -29,9 +29,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const errorMessage = error.response?.data?.error || "";
+
+      // If token expired or invalid, clear storage and redirect to login
+      if (
+        errorMessage.includes("expired") ||
+        errorMessage.includes("Invalid token")
+      ) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // AUTH API
-
 export const authAPI = {
   register: async (data: RegisterFormData): Promise<AuthResponse> => {
     const response = await api.post("/auth/register", data);
@@ -42,48 +61,56 @@ export const authAPI = {
     const response = await api.post("/auth/login", data);
     return response.data;
   },
+
+  verify: async (): Promise<{ user: any; valid: boolean }> => {
+    const response = await api.get("/auth/verify");
+    return response.data;
+  },
 };
 
-
 // TRIPS API
-
 export const tripsAPI = {
   getAll: async (): Promise<Trip[]> => {
     const response = await api.get("/trips");
     return response.data;
   },
+
   getById: async (id: number): Promise<TripWithActivities> => {
-    const response = await api.get(`/trips/${id}`);  // ✅ Fixed: parentheses + template literal
+    const response = await api.get(`/trips/${id}`);
     return response.data;
   },
+
   create: async (data: TripFormData): Promise<Trip> => {
     const response = await api.post("/trips", data);
     return response.data;
   },
+
   update: async (id: number, data: Partial<TripFormData>): Promise<Trip> => {
-    const response = await api.put(`/trips/${id}`, data);  // ✅ Fixed
+    const response = await api.put(`/trips/${id}`, data);
     return response.data;
   },
+
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/trips/${id}`);  // ✅ Fixed
+    await api.delete(`/trips/${id}`);
   },
 };
 
 // ACTIVITIES API
-
 export const activitiesAPI = {
   create: async (data: ActivityFormData): Promise<Activity> => {
     const response = await api.post("/activities", data);
     return response.data;
   },
+
   update: async (
     id: number,
     data: Partial<ActivityFormData>
   ): Promise<Activity> => {
-    const response = await api.put(`/activities/${id}`, data);  // ✅ Fixed
+    const response = await api.put(`/activities/${id}`, data);
     return response.data;
   },
+
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/activities/${id}`);  // ✅ Fixed
+    await api.delete(`/activities/${id}`);
   },
 };
