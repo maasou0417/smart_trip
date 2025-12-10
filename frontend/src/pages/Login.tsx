@@ -1,57 +1,206 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { validateEmail } from "../utils/validation";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({
+    email: "",
+    password: "",
+  });
+
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/trips");
+    }
+  }, [user, navigate]);
+
+  const handleEmailBlur = () => {
+    const validation = validateEmail(email);
+    setFieldErrors((prev) => ({
+      ...prev,
+      email: validation.isValid ? "" : validation.error || "",
+    }));
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    setFieldErrors({ email: "", password: "" });
+
+    // Validate
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        email: emailValidation.error || "",
+      }));
+      return;
+    }
+
+    if (!password) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        password: "Password is required",
+      }));
+      return;
+    }
+
+    setLoading(true);
 
     try {
       await login({ email, password });
       navigate("/trips");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed");
+      const errorMessage =
+        err.response?.data?.error || "Login failed. Please try again.";
+      setError(errorMessage);
+
+      // Check for rate limit error
+      if (errorMessage.includes("Too many")) {
+        setError(
+          "Too many login attempts. Please wait 15 minutes and try again."
+        );
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="auth-container">
-      <h1>Login</h1>
+      <h1>Welcome Back! 👋</h1>
+      <p
+        style={{
+          textAlign: "center",
+          color: "var(--dark-gray)",
+          marginBottom: "2rem",
+        }}
+      >
+        Login to continue planning your trips
+      </p>
+
+      {error && <div className="error-message">{error}</div>}
+
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Email:</label>
+          <label htmlFor="email">Email</label>
           <input
             type="email"
+            id="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, email: "" }));
+            }}
+            onBlur={handleEmailBlur}
+            placeholder="your@email.com"
+            disabled={loading}
+            style={{
+              borderColor: fieldErrors.email
+                ? "#D32F2F"
+                : "var(--light-gray)",
+            }}
             required
           />
+          {fieldErrors.email && (
+            <p
+              style={{
+                color: "#D32F2F",
+                fontSize: "0.875rem",
+                marginTop: "0.25rem",
+              }}
+            >
+              {fieldErrors.email}
+            </p>
+          )}
         </div>
+<div>
+  <label htmlFor="password">Password</label>
 
-        <div>
-          <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+  <div
+    style={{
+      position: "relative",
+      width: "100%",          // container matches input width only
+      display: "inline-block" // prevents stretching
+    }}
+  >
+    <input
+      type={showPassword ? "text" : "password"}
+      id="password"
+      value={password}
+      onChange={(e) => {
+        setPassword(e.target.value);
+        setFieldErrors((prev) => ({ ...prev, password: "" }));
+      }}
+      placeholder="Enter your password"
+      disabled={loading}
+      style={{
+        width: "100%",                       // match container exactly
+        borderColor: fieldErrors.password ? "#D32F2F" : "var(--light-gray)",
+        paddingRight: "2.5rem",              // space for eye icon
+        boxSizing: "border-box",             // prevents overflow
+      }}
+      required
+    />
 
-        {error && <p className="error">{error}</p>}
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      style={{
+        position: "absolute",
+        right: "0.75rem",
+        top: "20%",
+        transform: "translateY(-45%)",
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        fontSize: "1.25rem",
+        padding: 0,
+        height: "1.25rem",
+        width: "1.25rem",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}
+      disabled={loading}
+    >
+      {showPassword ? "🙈" : "👁️"}
+    </button>
+  </div>
 
-        <button type="submit">Login</button>
+  {fieldErrors.password && (
+    <p style={{ color: "#D32F2F", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+      {fieldErrors.password}
+    </p>
+  )}
+</div>
+
+
+        <button type="submit" disabled={loading}>
+          {loading ? (
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center" }}>
+              <span className="inline-loader">⏳</span>
+              Logging in...
+            </span>
+          ) : (
+            "Login"
+          )}
+        </button>
       </form>
 
       <p>
-        Don't have an account? <Link to="/register">Register here</Link>
+        Don't have an account?{" "}
+        <Link to="/register">Create one here</Link>
       </p>
     </div>
   );
