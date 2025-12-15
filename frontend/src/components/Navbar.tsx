@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import mapIcon from "../assets/icons/SmartTrip Icon.jpg";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -8,7 +9,12 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-brand">
-          <span className="brand-icon">🗺️</span>
+          <img 
+        src={mapIcon} 
+        alt="App Icon" 
+        style={{ width: "70px", height: "70px" }}
+        className="w-8 h-8 object-contain"
+      />
           <h2>Smart Trip</h2>
         </Link>
 
