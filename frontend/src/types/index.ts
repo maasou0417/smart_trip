@@ -18,6 +18,16 @@ export interface Trip {
   created_at: string;
 }
 
+export type ActivityCategory =
+  | "sightseeing"
+  | "food"
+  | "transport"
+  | "accommodation"
+  | "entertainment"
+  | "shopping"
+  | "outdoor"
+  | "other";
+
 export interface Activity {
   id: number;
   trip_id: number;
@@ -25,6 +35,11 @@ export interface Activity {
   title: string;
   description: string | null;
   time: string | null;
+  category: ActivityCategory | null; // New
+  location: string | null;  // New
+  cost: number | null;  // New
+  notes: string | null;  // New
+  completed: boolean;  // New
   created_at: string;
 }
 
@@ -63,4 +78,33 @@ export interface ActivityFormData {
   title: string;
   description?: string;
   time?: string;
+  category?: ActivityCategory; // New 
+  location?: string;  // New 
+  cost?: number;  // New 
+  notes?: string; // New 
 }
+
+export interface DayItinerary {
+  day_number: number;
+  date: string;
+  activities: Activity[];
+  total_cost: number;
+}
+
+export interface TripItinerary {
+  trip: Trip;
+  days: DayItinerary[];
+  total_activities: number;
+  total_cost: number;
+}
+
+export const ACTIVITY_CATEGORIES: { value: ActivityCategory; label: string; icon: string }[] = [
+  { value: "sightseeing", label: "Sightseeing", icon: "🏛️"},
+  { value: "food", label: "Food", icon: "🍽️"},
+  { value: "transport", label: "Transport", icon: "🚗"},
+  { value: "accommodation", label: "Accommodation", icon: "🏨"},
+  { value: "entertainment", label: "Entertainment", icon: "🎭"},
+  { value: "shopping", label: "Shopping", icon: "🛍️"},
+  { value: "outdoor", label: "Outdoor", icon: "🏞️"},
+  { value: "other", label: "Other", icon: "📌"},
+]
