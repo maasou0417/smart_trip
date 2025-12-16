@@ -114,11 +114,27 @@ export const deleteTrip = async (
 export const createActivity = async (
   activityData: CreateActivityDto
 ): Promise<Activity> => {
-  const { trip_id, day_number, title, description, time } = activityData;
+  const { trip_id, 
+    day_number, 
+    title, 
+    description,
+    time,
+    category,
+    location, 
+    cost,
+    notes } = activityData;
   const result = await pool.query(
-    `INSERT INTO activities (trip_id, day_number, title, description, time) 
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [trip_id, day_number, title, description || null, time || null]
+    `INSERT INTO activities (trip_id, day_number, title, description, time, category, location, cost, notes) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [trip_id, 
+      day_number, 
+      title, 
+      description || null, 
+      time || null,
+      category || null,
+      location || null,
+      cost || null,
+      notes || null]
   );
   return result.rows[0];
 };
