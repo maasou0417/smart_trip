@@ -184,3 +184,90 @@ export const getTripWithActivities = async (
     activities,
   };
 };
+
+// ENHANCED ACTIVITY QUERIES
+
+export const getActivitiesByDay = async (
+  tripId: number,
+  dayNumber: number
+): Promise<Activity[]> => {
+  const result = await pool.query(
+    "SELECT * FROM activities WHERE trip_id = $1 AND day_number = $2 ORDER BY time NULLS LAST, id",
+    [tripId, dayNumber]
+  );
+  return result.rows;
+};
+
+export const getTripItinerary = async (
+  tripId: number,
+  userId: number
+): Promise<any> => {
+  // Get trip
+  const trip = await getTripById(tripId, userId);
+  if (!trip) return null;
+
+  // Calculate days
+  const startDate = new Date(trip.start_date);
+  const endDate = new Date(trip.end_date);
+  const totalDays =
+    Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Get all activities
+  const activities = await getActivitiesByTripId(tripId);
+
+  // Group by day
+  const days = [];
+  let totalCost = 0;
+
+  for (let i = 1; i <= totalDays; i++) {
+    const dayActivities = activities.filter((a) => a.day_number === i);
+    const dayCost = dayActivities.reduce(
+      (sum, a) => sum + (parseFloat(a.cost as any) || 0),
+      0
+    );
+    totalCost += dayCost;
+
+    const currentDate = new Date(startDate);
+    currentDate.setDate(startDate.getDate() + i - 1);
+
+    days.push({
+      day_number: i,
+      date: currentDate.toISOString().split("T")[0],
+      activities: dayActivities,
+      total_cost: dayCost,
+    });
+  }
+
+  return {
+    trip,
+    days,
+    total_activities: activities.length,
+    total_cost: totalCost,
+  };
+};
+
+export const toggleActivityComplete = async (
+  activityId: number
+): Promise<Activity | null> => {
+  const result = await pool.query(
+    "UPDATE activities SET completed = NOT completed WHERE id = $1 RETURNING *",
+    [activityId]
+  );
+  return result.rows[0] || null;
+};
+
+export const getActivityStats = async (tripId: number) => {
+  const result = await pool.query(
+    `
+    SELECT 
+      COUNT(*) as total_activities,
+      SUM(CASE WHEN completed THEN 1 ELSE 0 END) as completed_activities,
+      SUM(cost) as total_cost,
+      COUNT(DISTINCT day_number) as days_with_activities
+    FROM activities 
+    WHERE trip_id = $1
+  `,
+    [tripId]
+  );
+  return result.rows[0];
+};
