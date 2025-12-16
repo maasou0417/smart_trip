@@ -20,6 +20,16 @@ export interface Trip {
   created_at: Date;
 }
 
+export type ActivityCategory =
+  | "sightseeing"
+  | "food"
+  | "transport"
+  | "accommodation"
+  | "entertainment"
+  | "shopping"
+  | "outdoor"
+  | "other";
+
 export interface Activity {
   id: number;
   trip_id: number;
@@ -27,6 +37,11 @@ export interface Activity {
   title: string;
   description: string | null;
   time: string | null;      // tex: "09:00" 
+  category: ActivityCategory | null; // New
+  location: string | null;  // New
+  cost: number | null;  // New
+  notes: string | null;   // New
+  completed: boolean;   // New
   created_at: Date;
 }
 
@@ -51,6 +66,7 @@ export interface CreateTripDto {
   end_date: string;
 }
 
+
 export interface UpdateTripDto {
   title?: string;
   destination?: string;
@@ -64,6 +80,10 @@ export interface CreateActivityDto {
   title: string;
   description?: string;
   time?: string;
+  category?: ActivityCategory; // New
+  location?: string;  // New
+  cost?: number;  // New
+  notes?: string;  // New
 }
 
 export interface UpdateActivityDto {
@@ -71,6 +91,26 @@ export interface UpdateActivityDto {
   title?: string;
   description?: string;
   time?: string;
+  category?: ActivityCategory; // New
+  location?: string;  // New
+  cost?: number;  // New
+  notes?: string;  // New
+  completed?: boolean;  // New
+} 
+
+// Itinerary helpers
+export interface DayItinerary {
+  day_number: number;
+  date: string;
+  activities: Activity[];
+  total_cost: number;
+}
+
+export interface TripItinerary {
+  trip: Trip;
+  days: DayItinerary[];
+  total_activities: number;
+  total_cost: number;
 }
 
 // Response Types - represent data the frontend receives
