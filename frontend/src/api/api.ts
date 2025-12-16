@@ -8,6 +8,7 @@ import type {
   TripFormData,
   Activity,
   ActivityFormData,
+  TripItinerary,
 } from "../types/index";
 
 const API_URL = "http://localhost:5000/api";
@@ -113,4 +114,29 @@ export const activitiesAPI = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/activities/${id}`);
   },
+
+  toggleComplete: async (id: number): Promise<Activity> => {
+    const response = await api.patch(`/activities/${id}/toggle`);
+    return response.data;
+  },
+
+  getByDay: async (tripId: number,
+     dayNumber: number): Promise<Activity[]> => {
+    const response = await api.get(`/activities/trip/${tripId}/day/${dayNumber}`);
+    return response.data;
+  },
+};
+
+// Adding new ITINERARYAPI
+
+export const itineraryAPI = {
+  get: async (tripId: number): Promise<TripItinerary> => {
+    const response = await api.get(`/itinerary/${tripId}`);
+    return response.data;
+  },
+
+ getStats: async (tripId: number): Promise<any> => {
+    const response = await api.get(`/itinerary/${tripId}/stats`);
+    return response.data;
+  },  
 };
