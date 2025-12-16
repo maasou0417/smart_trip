@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { tripsAPI, activitiesAPI } from "../api/api";
-import type { TripWithActivities, Activity } from "../types";
+import type { TripWithActivities, Activity, ActivityFormData } from "../types";
+import { ACTIVITY_CATEGORIES } from "../types";
+import Loading from "../components/Loading";
 
 const TripDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +12,8 @@ const TripDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showActivityForm, setShowActivityForm] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     loadTrip();
@@ -28,7 +32,6 @@ const TripDetailsPage = () => {
 
   const handleDeleteTrip = async () => {
     if (!window.confirm("Are you sure you want to delete this trip?")) return;
-
     try {
       await tripsAPI.delete(Number(id));
       navigate("/trips");
@@ -37,27 +40,37 @@ const TripDetailsPage = () => {
     }
   };
 
+  const handleToggleComplete = async (activityId: number) => {
+    try {
+      await activitiesAPI.toggleComplete(activityId);
+      await loadTrip();
+    } catch (err) {
+      setError("Failed to toggle activity");
+    }
+  };
+
   const handleDeleteActivity = async (activityId: number) => {
     if (!window.confirm("Delete this activity?")) return;
-
     try {
       await activitiesAPI.delete(activityId);
-      loadTrip(); // Reload trip
+      await loadTrip();
+      showSuccess("Activity deleted");
     } catch (err) {
       setError("Failed to delete activity");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page-loader">
-        <div className="loading-spinner loading-spinner-large">
-          <div className="spinner"></div>
-        </div>
-        <p className="loader-message">Loading trip...</p>
-      </div>
-    );
-  }
+  const handleEditActivity = (activity: Activity) => {
+    setEditingActivity(activity);
+    setShowActivityForm(false); // Close add form if open
+  };
+
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(""), 3000);
+  };
+
+  if (loading) return <Loading message="Loading trip..." />;
 
   if (error || !trip) {
     return (
@@ -72,37 +85,55 @@ const TripDetailsPage = () => {
     );
   }
 
-  // Group activities by day
   const activitiesByDay = trip.activities.reduce((acc, activity) => {
-    if (!acc[activity.day_number]) {
-      acc[activity.day_number] = [];
-    }
+    if (!acc[activity.day_number]) acc[activity.day_number] = [];
     acc[activity.day_number].push(activity);
     return acc;
   }, {} as Record<number, Activity[]>);
 
-  const tripDays = Math.ceil(
-    (new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) /
-      (1000 * 60 * 60 * 24)
-  ) + 1;
+  const tripDays =
+    Math.ceil(
+      (new Date(trip.end_date).getTime() -
+        new Date(trip.start_date).getTime()) /
+        (1000 * 60 * 60 * 24)
+    ) + 1;
+
+  const totalCost = trip.activities.reduce(
+    (sum, a) => sum + Number(a.cost || 0), 0);
+  const completedActivities = trip.activities.filter(
+    (a) => a.completed).length;
 
   return (
     <div>
-      {/* Trip Header */}
+      {successMessage && (
+        <div className="success-container">
+          <div className="success-content">
+            <span className="success-icon">✅</span>
+            <p className="success-message">{successMessage}</p>
+          </div>
+          <button className="success-close" onClick={() => setSuccessMessage("")}>
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="page-header">
         <div>
           <h1>{trip.title}</h1>
-          <p style={{ fontSize: "1.125rem", color: "var(--dark-gray)" }}>
+          <p style={{ fontSize: "1.125rem", color: "var(--dark-gray)", marginTop: "0.5rem" }}>
             📍 {trip.destination}
           </p>
-          <p style={{ color: "var(--dark-gray)" }}>
+          <p style={{ color: "var(--dark-gray)", marginTop: "0.25rem" }}>
             📅 {new Date(trip.start_date).toLocaleDateString()} -{" "}
-            {new Date(trip.end_date).toLocaleDateString()}
+            {new Date(trip.end_date).toLocaleDateString()} ({tripDays} days)
           </p>
         </div>
         <div style={{ display: "flex", gap: "1rem" }}>
           <button
-            onClick={() => setShowActivityForm(!showActivityForm)}
+            onClick={() => {
+              setShowActivityForm(!showActivityForm);
+              setEditingActivity(null);
+            }}
             className="btn-primary"
           >
             ➕ Add Activity
@@ -113,116 +144,344 @@ const TripDetailsPage = () => {
         </div>
       </div>
 
-      {/* Add Activity Form */}
+      {/* Stats */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "1rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <StatCard icon="📝" value={trip.activities.length} label="Activities" />
+        <StatCard
+          icon="✅"
+          value={`${completedActivities}/${trip.activities.length}`}
+          label="Completed"
+        />
+        <StatCard
+          icon="💰"
+          value={`€${totalCost.toFixed(2)}`}
+          label="Total Cost"
+          color="var(--primary)"
+        />
+      </div>
+
+      {/* Add Form */}
       {showActivityForm && (
-        <AddActivityForm
+        <ActivityFormWrapper
           tripId={trip.id}
-          onSuccess={() => {
+          maxDays={tripDays}
+          onSuccess={async (data: ActivityFormData) => {
+            await activitiesAPI.create(data);
+            await loadTrip();
             setShowActivityForm(false);
-            loadTrip();
+            showSuccess("Activity added! 🎉");
           }}
           onCancel={() => setShowActivityForm(false)}
         />
       )}
 
-      {/* Activities by Day */}
-      {tripDays === 0 ? (
+      {/* Edit Form */}
+      {editingActivity && (
+        <ActivityFormWrapper
+          tripId={trip.id}
+          maxDays={tripDays}
+          activity={editingActivity}
+          onSuccess={async (data: Partial<ActivityFormData>) => {
+            await activitiesAPI.update(editingActivity.id, data);
+            await loadTrip();
+            setEditingActivity(null);
+            showSuccess("Activity updated! ✅");
+          }}
+          onCancel={() => setEditingActivity(null)}
+        />
+      )}
+
+      {/* Activities */}
+      {trip.activities.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📝</div>
           <h3 className="empty-state-title">No activities yet</h3>
-          <p className="empty-state-message">
-            Start planning your trip by adding activities!
-          </p>
+          <p className="empty-state-message">Start planning!</p>
+          <button onClick={() => setShowActivityForm(true)} className="btn-primary">
+            Add Your First Activity
+          </button>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-          {Array.from({ length: tripDays }, (_, i) => i + 1).map((day) => (
-            <div key={day}>
-              <h2 style={{ marginBottom: "1rem", color: "var(--dark)" }}>
-                Day {day}
-              </h2>
-              {activitiesByDay[day] && activitiesByDay[day].length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {activitiesByDay[day].map((activity) => (
-                    <div key={activity.id} className="activity-card">
-                      <div className="activity-card-header">
-                        <span className="activity-day-badge">Day {activity.day_number}</span>
-                        {activity.time && (
-                          <span className="activity-time">
-                            <span className="time-icon">🕐</span>
-                            {activity.time}
-                          </span>
-                        )}
-                      </div>
-                      <div className="activity-card-body">
-                        <h3 className="activity-title">{activity.title}</h3>
-                        {activity.description && (
-                          <p className="activity-description">{activity.description}</p>
-                        )}
-                      </div>
-                      <div className="activity-card-actions">
-                        <button
-                          className="btn-icon btn-delete"
-                          onClick={() => handleDeleteActivity(activity.id)}
-                          title="Delete activity"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    background: "var(--light-gray)",
-                    padding: "2rem",
-                    borderRadius: "var(--radius-md)",
-                    textAlign: "center",
-                    color: "var(--dark-gray)",
-                  }}
-                >
-                  No activities planned for this day
-                </div>
-              )}
-            </div>
-          ))}
+          {Array.from({ length: tripDays }, (_, i) => i + 1).map((day) => {
+            const dayActivities = activitiesByDay[day] || [];
+            const dayCost = dayActivities.reduce(
+              (sum, a) => sum + Number(a.cost || 0), 0);
+
+            return (
+              <DaySection
+                key={day}
+                day={day}
+                activities={dayActivities}
+                dayCost={dayCost}
+                onToggleComplete={handleToggleComplete}
+                onEdit={handleEditActivity}
+                onDelete={handleDeleteActivity}
+              />
+            );
+          })}
         </div>
       )}
     </div>
   );
 };
 
-// Add Activity Form Component
-const AddActivityForm = ({
-  tripId,
-  onSuccess,
-  onCancel,
-}: {
-  tripId: number;
-  onSuccess: () => void;
-  onCancel: () => void;
-}) => {
+// Helper Components
+const StatCard = ({ icon, value, label, color }: any) => (
+  <div
+    style={{
+      background: "var(--white)",
+      padding: "1.5rem",
+      borderRadius: "var(--radius-md)",
+      boxShadow: "var(--shadow-sm)",
+      textAlign: "center",
+    }}
+  >
+    <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{icon}</p>
+    <p
+      style={{
+        fontSize: "1.5rem",
+        fontWeight: 700,
+        color: color || "var(--dark)",
+      }}
+    >
+      {value}
+    </p>
+    <p style={{ color: "var(--dark-gray)" }}>{label}</p>
+  </div>
+);
+
+const DaySection = ({ day, activities, dayCost, onToggleComplete, onEdit, onDelete }: any) => (
+  <div>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "1rem",
+      }}
+    >
+      <h2 style={{ color: "var(--dark)", margin: 0 }}>Day {day}</h2>
+      {dayCost > 0 && (
+        <span
+          style={{
+            background: "var(--light-gray)",
+            padding: "0.5rem 1rem",
+            borderRadius: "var(--radius-sm)",
+            fontWeight: 600,
+            color: "var(--primary)",
+          }}
+        >
+          Day Total: €{dayCost.toFixed(2)}
+        </span>
+      )}
+    </div>
+
+    {activities.length > 0 ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        {activities.map((activity: Activity) => (
+          <ActivityCard
+            key={activity.id}
+            activity={activity}
+            onToggleComplete={onToggleComplete}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    ) : (
+      <div
+        style={{
+          background: "var(--light-gray)",
+          padding: "2rem",
+          borderRadius: "var(--radius-md)",
+          textAlign: "center",
+          color: "var(--dark-gray)",
+        }}
+      >
+        No activities planned for this day
+      </div>
+    )}
+  </div>
+);
+
+const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => {
+  const getCategoryInfo = () => {
+    return (
+      ACTIVITY_CATEGORIES.find((c) => c.value === activity.category) || {
+        icon: "📌",
+        label: "Other",
+      }
+    );
+  };
+
+  const categoryInfo = getCategoryInfo();
+
+  return (
+    <div
+      className={`activity-card ${activity.completed ? "completed" : ""}`}
+      style={{
+        opacity: activity.completed ? 0.7 : 1,
+        borderLeftColor: activity.completed ? "#4CAF50" : "var(--primary)",
+      }}
+    >
+      <div className="activity-card-header">
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <span className="activity-day-badge">Day {activity.day_number}</span>
+          {activity.category && (
+            <span
+              style={{
+                background: "var(--light-gray)",
+                padding: "0.25rem 0.5rem",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "0.875rem",
+              }}
+            >
+              {categoryInfo.icon} {categoryInfo.label}
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          {activity.time && (
+            <span className="activity-time">
+              🕐 {activity.time}
+            </span>
+          )}
+          {Number(activity.cost) > 0 && (
+            <span
+              style={{
+                color: "var(--primary)",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+              }}
+            >
+              €{Number(activity.cost).toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="activity-card-body">
+        <h3
+          className="activity-title"
+          style={{
+            textDecoration: activity.completed ? "line-through" : "none",
+          }}
+        >
+          {activity.title}
+        </h3>
+
+        {activity.location && (
+          <p style={{ color: "var(--dark-gray)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+            📍 {activity.location}
+          </p>
+        )}
+
+        {activity.description && (
+          <p className="activity-description">{activity.description}</p>
+        )}
+
+        {activity.notes && (
+          <div
+            style={{
+              background: "#FFF9E6",
+              padding: "0.75rem",
+              borderRadius: "var(--radius-sm)",
+              marginTop: "0.75rem",
+              borderLeft: "3px solid #FFC107",
+            }}
+          >
+            <p style={{ fontSize: "0.875rem", color: "var(--dark)", margin: 0 }}>
+              📝 <strong>Note:</strong> {activity.notes}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="activity-card-actions">
+        <button
+          className="btn-icon"
+          onClick={() => onToggleComplete(activity.id)}
+          title={activity.completed ? "Mark incomplete" : "Mark complete"}
+          style={{ color: activity.completed ? "#4CAF50" : "var(--dark-gray)" }}
+        >
+          {activity.completed ? "✅" : "⭕"}
+        </button>
+        <button
+          className="btn-icon btn-edit"
+          onClick={() => onEdit(activity)}
+          title="Edit activity"
+        >
+          ✏️
+        </button>
+        <button
+          className="btn-icon btn-delete"
+          onClick={() => onDelete(activity.id)}
+          title="Delete activity"
+        >
+          🗑️
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ActivityFormWrapper = ({ tripId, maxDays, activity, onSuccess, onCancel }: any) => {
   const [formData, setFormData] = useState({
     trip_id: tripId,
-    day_number: 1,
-    title: "",
-    description: "",
-    time: "",
+    day_number: activity?.day_number || 1,
+    title: activity?.title || "",
+    description: activity?.description || "",
+    time: activity?.time || "",
+    category: activity?.category || "",
+    location: activity?.location || "",
+    cost: activity?.cost || "",
+    notes: activity?.notes || "",
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "cost"
+          ? value
+            ? parseFloat(value)
+            : ""
+          : name === "day_number"
+          ? parseInt(value)
+          : value,
+    }));
+  };
+
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
-      await activitiesAPI.create(formData);
-      onSuccess();
+      const submitData = {
+        ...formData,
+        cost: formData.cost || undefined,
+        category: formData.category || undefined,
+        location: formData.location || undefined,
+        description: formData.description || undefined,
+        time: formData.time || undefined,
+        notes: formData.notes || undefined,
+      };
+      await onSuccess(submitData);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create activity");
+      setError(err.response?.data?.error || "Failed to save activity");
     } finally {
       setLoading(false);
     }
@@ -230,53 +489,96 @@ const AddActivityForm = ({
 
   return (
     <div className="form-container" style={{ marginBottom: "2rem" }}>
-      <h2>Add Activity</h2>
+      <h2>{activity ? "✏️ Edit Activity" : "➕ Add Activity"}</h2>
       {error && <div className="error-message">{error}</div>}
+
       <form onSubmit={handleSubmit} className="activity-form">
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="day_number">Day Number *</label>
+            <label>Day * (1-{maxDays})</label>
             <input
               type="number"
-              id="day_number"
+              name="day_number"
               min="1"
+              max={maxDays}
               value={formData.day_number}
-              onChange={(e) =>
-                setFormData({ ...formData, day_number: Number(e.target.value) })
-              }
+              onChange={handleChange}
               required
             />
           </div>
           <div className="form-group">
-            <label htmlFor="time">Time</label>
-            <input
-              type="time"
-              id="time"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-            />
+            <label>Time</label>
+            <input type="time" name="time" value={formData.time} onChange={handleChange} />
           </div>
         </div>
 
         <div className="form-group">
-          <label htmlFor="title">Activity Title *</label>
+          <label>Title *</label>
           <input
             type="text"
-            id="title"
+            name="title"
             value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            onChange={handleChange}
             placeholder="e.g., Visit Eiffel Tower"
             required
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="description">Description</label>
+          <label>Category</label>
+          <select name="category" value={formData.category} onChange={handleChange}>
+            <option value="">Select category</option>
+            {ACTIVITY_CATEGORIES.map((cat) => (
+              <option key={cat.value} value={cat.value}>
+                {cat.icon} {cat.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Location</label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              placeholder="e.g., Champ de Mars, Paris"
+            />
+          </div>
+          <div className="form-group">
+            <label>Cost (€)</label>
+            <input
+              type="number"
+              name="cost"
+              min="0"
+              step="0.01"
+              value={formData.cost}
+              onChange={handleChange}
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Description</label>
           <textarea
-            id="description"
+            name="description"
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Add details about this activity..."
+            onChange={handleChange}
+            placeholder="Details..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            name="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            placeholder="Booking info, tips..."
+            style={{ minHeight: "80px" }}
           />
         </div>
 
@@ -285,7 +587,7 @@ const AddActivityForm = ({
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? "Adding..." : "Add Activity"}
+            {loading ? "Saving..." : activity ? "Update" : "Add Activity"}
           </button>
         </div>
       </form>
