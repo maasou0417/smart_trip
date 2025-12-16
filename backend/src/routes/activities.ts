@@ -4,6 +4,8 @@ import {
   updateActivity,
   deleteActivity,
   getTripById,
+  getActivitiesByDay,
+  toggleActivityComplete
 } from "../db/queries";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import { CreateActivityDto, UpdateActivityDto } from "../types";
@@ -19,12 +21,13 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     const activityData: CreateActivityDto = req.body;
 
     // Validation
-    if (!activityData.trip_id || !activityData.title) {
+    if (!activityData.trip_id || !activityData.title || !activityData.day_number) {
       return res
         .status(400)
-        .json({ error: "Trip ID and title are required" });
+        .json({ error: "Trip ID,title & day number are required" });
     }
-
+    
+    // Verify user owns the trip
     const trip = await getTripById(activityData.trip_id, req.userId!);
     if (!trip) {
       return res
@@ -37,6 +40,45 @@ router.post("/", async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error("Create activity error:", error);
     res.status(500).json({ error: "Failed to create activity" });
+  }
+});
+
+
+// Get activities for specific day 
+router.get("/trip/:tripId/day/:dayNumber", async (req: AuthRequest, res: Response) => {
+try {
+    const tripId = parseInt(req.params.tripId);
+    const dayNumber = parseInt(req.params.dayNumber);
+
+    // Verify ownership
+    const trip = await getTripById(tripId, req.userId!);
+    if (!trip) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    const activities = await getActivitiesByDay(tripId, dayNumber);
+    res.json(activities);
+  } catch (error) {
+    console.error("Get activities error:", error);
+    res.status(500).json({ error: "Failed to fetch activities" });
+  }
+
+});
+
+// Toggle activity completion
+router.patch("/:id/toggle", async (req: AuthRequest, res: Response) => {
+  try {
+    const activityId = parseInt(req.params.id);
+    const activity = await toggleActivityComplete(activityId);
+
+    if (!activity) {
+      return res.status(404).json({ error: "Activity not found" });
+    }
+
+    res.json(activity);
+  } catch (error) {
+    console.error("Toggle activity error:", error);
+    res.status(500).json({ error: "Failed to toggle activity" });
   }
 });
 
