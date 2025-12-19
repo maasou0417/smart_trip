@@ -1,7 +1,7 @@
 
+export * from "./weather";
 
 // Matchar exakt vad backend returnerar
-
 export interface User {
   id: number;
   email: string;
