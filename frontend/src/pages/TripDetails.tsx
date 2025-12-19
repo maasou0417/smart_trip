@@ -4,6 +4,9 @@ import { tripsAPI, activitiesAPI } from "../api/api";
 import type { TripWithActivities, Activity, ActivityFormData } from "../types";
 import { ACTIVITY_CATEGORIES } from "../types";
 import Loading from "../components/Loading";
+import { useWeather } from "../hooks/useWeather";
+import WeatherWidget from "../components/WeatherWidget";
+import WeatherBadge from "../components/WeatherBadge";
 
 const TripDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +32,20 @@ const TripDetailsPage = () => {
       setLoading(false);
     }
   };
+
+  const tripDays = trip
+    ? Math.ceil(
+        (new Date(trip.end_date).getTime() -
+          new Date(trip.start_date).getTime()) /
+          (1000 * 60 * 60 * 24)
+      ) + 1
+    : 0;
+
+  // Fetch weather for trip destination
+  const { weather } = useWeather(
+    trip?.destination || "",
+    tripDays
+  );
 
   const handleDeleteTrip = async () => {
     if (!window.confirm("Are you sure you want to delete this trip?")) return;
@@ -62,7 +79,7 @@ const TripDetailsPage = () => {
 
   const handleEditActivity = (activity: Activity) => {
     setEditingActivity(activity);
-    setShowActivityForm(false); // Close add form if open
+    setShowActivityForm(false);
   };
 
   const showSuccess = (message: string) => {
@@ -91,17 +108,11 @@ const TripDetailsPage = () => {
     return acc;
   }, {} as Record<number, Activity[]>);
 
-  const tripDays =
-    Math.ceil(
-      (new Date(trip.end_date).getTime() -
-        new Date(trip.start_date).getTime()) /
-        (1000 * 60 * 60 * 24)
-    ) + 1;
-
   const totalCost = trip.activities.reduce(
-    (sum, a) => sum + Number(a.cost || 0), 0);
-  const completedActivities = trip.activities.filter(
-    (a) => a.completed).length;
+    (sum, a) => sum + Number(a.cost || 0),
+    0
+  );
+  const completedActivities = trip.activities.filter((a) => a.completed).length;
 
   return (
     <div>
@@ -111,7 +122,10 @@ const TripDetailsPage = () => {
             <span className="success-icon">✅</span>
             <p className="success-message">{successMessage}</p>
           </div>
-          <button className="success-close" onClick={() => setSuccessMessage("")}>
+          <button
+            className="success-close"
+            onClick={() => setSuccessMessage("")}
+          >
             ×
           </button>
         </div>
@@ -120,7 +134,13 @@ const TripDetailsPage = () => {
       <div className="page-header">
         <div>
           <h1>{trip.title}</h1>
-          <p style={{ fontSize: "1.125rem", color: "var(--dark-gray)", marginTop: "0.5rem" }}>
+          <p
+            style={{
+              fontSize: "1.125rem",
+              color: "var(--dark-gray)",
+              marginTop: "0.5rem",
+            }}
+          >
             📍 {trip.destination}
           </p>
           <p style={{ color: "var(--dark-gray)", marginTop: "0.25rem" }}>
@@ -167,6 +187,15 @@ const TripDetailsPage = () => {
         />
       </div>
 
+      {/* Weather Widget */}
+      {trip && (
+        <WeatherWidget
+          destination={trip.destination}
+          days={tripDays}
+          title={`Weather Forecast for ${trip.destination}`}
+        />
+      )}
+
       {/* Add Form */}
       {showActivityForm && (
         <ActivityFormWrapper
@@ -204,7 +233,10 @@ const TripDetailsPage = () => {
           <div className="empty-state-icon">📝</div>
           <h3 className="empty-state-title">No activities yet</h3>
           <p className="empty-state-message">Start planning!</p>
-          <button onClick={() => setShowActivityForm(true)} className="btn-primary">
+          <button
+            onClick={() => setShowActivityForm(true)}
+            className="btn-primary"
+          >
             Add Your First Activity
           </button>
         </div>
@@ -213,7 +245,12 @@ const TripDetailsPage = () => {
           {Array.from({ length: tripDays }, (_, i) => i + 1).map((day) => {
             const dayActivities = activitiesByDay[day] || [];
             const dayCost = dayActivities.reduce(
-              (sum, a) => sum + Number(a.cost || 0), 0);
+              (sum, a) => sum + Number(a.cost || 0),
+              0
+            );
+            
+            // Get weather for this day
+            const dayWeather = weather?.forecast[day - 1];
 
             return (
               <DaySection
@@ -221,6 +258,7 @@ const TripDetailsPage = () => {
                 day={day}
                 activities={dayActivities}
                 dayCost={dayCost}
+                weather={dayWeather}
                 onToggleComplete={handleToggleComplete}
                 onEdit={handleEditActivity}
                 onDelete={handleDeleteActivity}
@@ -258,7 +296,15 @@ const StatCard = ({ icon, value, label, color }: any) => (
   </div>
 );
 
-const DaySection = ({ day, activities, dayCost, onToggleComplete, onEdit, onDelete }: any) => (
+const DaySection = ({
+  day,
+  activities,
+  dayCost,
+  weather,
+  onToggleComplete,
+  onEdit,
+  onDelete,
+}: any) => (
   <div>
     <div
       style={{
@@ -266,9 +312,15 @@ const DaySection = ({ day, activities, dayCost, onToggleComplete, onEdit, onDele
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "1rem",
+        flexWrap: "wrap",
+        gap: "1rem",
       }}
     >
-      <h2 style={{ color: "var(--dark)", margin: 0 }}>Day {day}</h2>
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <h2 style={{ color: "var(--dark)", margin: 0 }}>Day {day}</h2>
+        {weather && <WeatherBadge weather={weather} size="small" />}
+      </div>
+
       {dayCost > 0 && (
         <span
           style={{
@@ -312,7 +364,12 @@ const DaySection = ({ day, activities, dayCost, onToggleComplete, onEdit, onDele
   </div>
 );
 
-const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => {
+const ActivityCard = ({
+  activity,
+  onToggleComplete,
+  onEdit,
+  onDelete,
+}: any) => {
   const getCategoryInfo = () => {
     return (
       ACTIVITY_CATEGORIES.find((c) => c.value === activity.category) || {
@@ -351,9 +408,7 @@ const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => 
 
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           {activity.time && (
-            <span className="activity-time">
-              🕐 {activity.time}
-            </span>
+            <span className="activity-time">🕐 {activity.time}</span>
           )}
           {Number(activity.cost) > 0 && (
             <span
@@ -380,7 +435,13 @@ const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => 
         </h3>
 
         {activity.location && (
-          <p style={{ color: "var(--dark-gray)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+          <p
+            style={{
+              color: "var(--dark-gray)",
+              fontSize: "0.9rem",
+              marginBottom: "0.5rem",
+            }}
+          >
             📍 {activity.location}
           </p>
         )}
@@ -399,7 +460,13 @@ const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => 
               borderLeft: "3px solid #FFC107",
             }}
           >
-            <p style={{ fontSize: "0.875rem", color: "var(--dark)", margin: 0 }}>
+            <p
+              style={{
+                fontSize: "0.875rem",
+                color: "var(--dark)",
+                margin: 0,
+              }}
+            >
               📝 <strong>Note:</strong> {activity.notes}
             </p>
           </div>
@@ -411,7 +478,9 @@ const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => 
           className="btn-icon"
           onClick={() => onToggleComplete(activity.id)}
           title={activity.completed ? "Mark incomplete" : "Mark complete"}
-          style={{ color: activity.completed ? "#4CAF50" : "var(--dark-gray)" }}
+          style={{
+            color: activity.completed ? "#4CAF50" : "var(--dark-gray)",
+          }}
         >
           {activity.completed ? "✅" : "⭕"}
         </button>
@@ -434,7 +503,13 @@ const ActivityCard = ({ activity, onToggleComplete, onEdit, onDelete }: any) => 
   );
 };
 
-const ActivityFormWrapper = ({ tripId, maxDays, activity, onSuccess, onCancel }: any) => {
+const ActivityFormWrapper = ({
+  tripId,
+  maxDays,
+  activity,
+  onSuccess,
+  onCancel,
+}: any) => {
   const [formData, setFormData] = useState({
     trip_id: tripId,
     day_number: activity?.day_number || 1,
@@ -495,7 +570,9 @@ const ActivityFormWrapper = ({ tripId, maxDays, activity, onSuccess, onCancel }:
       <form onSubmit={handleSubmit} className="activity-form">
         <div className="form-row">
           <div className="form-group">
-            <label>Day * (1-{maxDays})</label>
+            <label>
+              Day * (1-{maxDays})
+            </label>
             <input
               type="number"
               name="day_number"
@@ -508,7 +585,12 @@ const ActivityFormWrapper = ({ tripId, maxDays, activity, onSuccess, onCancel }:
           </div>
           <div className="form-group">
             <label>Time</label>
-            <input type="time" name="time" value={formData.time} onChange={handleChange} />
+            <input
+              type="time"
+              name="time"
+              value={formData.time}
+              onChange={handleChange}
+            />
           </div>
         </div>
 
@@ -526,7 +608,11 @@ const ActivityFormWrapper = ({ tripId, maxDays, activity, onSuccess, onCancel }:
 
         <div className="form-group">
           <label>Category</label>
-          <select name="category" value={formData.category} onChange={handleChange}>
+          <select
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+          >
             <option value="">Select category</option>
             {ACTIVITY_CATEGORIES.map((cat) => (
               <option key={cat.value} value={cat.value}>
@@ -583,7 +669,12 @@ const ActivityFormWrapper = ({ tripId, maxDays, activity, onSuccess, onCancel }:
         </div>
 
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={loading}>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary"
+            disabled={loading}
+          >
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={loading}>
