@@ -9,6 +9,8 @@ import type {
   Activity,
   ActivityFormData,
   TripItinerary,
+  WeatherForecast,
+  WeatherData,
 } from "../types/index";
 
 const API_URL = "http://localhost:5000/api";
@@ -139,4 +141,24 @@ export const itineraryAPI = {
     const response = await api.get(`/itinerary/${tripId}/stats`);
     return response.data;
   },  
+};
+
+// Weather API
+export const weatherAPI = {
+  getForecast: async (
+    destination: string,
+    days: number = 7
+  ): Promise<WeatherForecast> => {
+    const encoded = encodeURIComponent(destination);
+    const response = await api.get(`/weather/forecast/${encoded}`, {
+      params: { days },
+    });
+    return response.data;
+  },
+
+ getCurrent: async (destination: string): Promise<WeatherData> => {
+    const encoded = encodeURIComponent(destination);
+    const response = await api.get(`/weather/current/${encoded}`);
+    return response.data;
+  },
 };
