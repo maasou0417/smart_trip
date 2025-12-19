@@ -1,6 +1,8 @@
 
-// Database types === database tabellerna ser ut i Supabase
 
+export * from "./weather";
+
+// Database types === database tabellerna ser ut i Supabase
 export interface User {
   id: number;
   email: string;
