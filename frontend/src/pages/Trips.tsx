@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Trip } from "../types";
 import { tripsAPI } from "../api/api";
+import { useCurrentWeather } from "../hooks/useWeather";
+import { getWeatherEmoji } from "../types/weather";
 import Loading from "../components/Loading";
 
 const TripsPage = () => {
@@ -52,38 +54,77 @@ const TripsPage = () => {
           <p className="empty-state-message">
             Start planning your next adventure by creating your first trip!
           </p>
-          <Link to="/trips/new" className="btn-primary" style={{ marginTop: "1rem" }}>
+          <Link
+            to="/trips/new"
+            className="btn-primary"
+            style={{ marginTop: "1rem" }}
+          >
             Create Your First Trip
           </Link>
         </div>
       ) : (
         <div className="trips-grid">
           {trips.map((trip) => (
-            <Link to={`/trips/${trip.id}`} key={trip.id} className="trip-card-link">
-              <div className="trip-card">
-                <div className="trip-card-body">
-                  <h3 className="trip-card-title">{trip.title}</h3>
-                  <div className="trip-card-info">
-                    <div className="trip-info-item">
-                      <span className="info-icon">📍</span>
-                      {trip.destination}
-                    </div>
-                    <div className="trip-info-item">
-                      <span className="info-icon">📅</span>
-                      {new Date(trip.start_date).toLocaleDateString()} -{" "}
-                      {new Date(trip.end_date).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="trip-card-footer">
-                  <span className="trip-card-cta">View Details →</span>
-                </div>
-              </div>
-            </Link>
+            <TripCardWithWeather key={trip.id} trip={trip} />
           ))}
         </div>
       )}
     </div>
+  );
+};
+
+// Trip Card with Weather
+const TripCardWithWeather = ({ trip }: { trip: Trip }) => {
+  const { weather } = useCurrentWeather(trip.destination);
+
+  return (
+    <Link to={`/trips/${trip.id}`} className="trip-card-link">
+      <div className="trip-card">
+        {/* Weather Badge */}
+        {weather && (
+          <div
+            style={{
+              position: "absolute",
+              top: "1rem",
+              right: "1rem",
+              background: "rgba(102, 126, 234, 0.95)",
+              color: "white",
+              padding: "0.5rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>
+              {getWeatherEmoji(weather.icon)}
+            </span>
+            <span>{weather.temp}°C</span>
+          </div>
+        )}
+
+        <div className="trip-card-body">
+          <h3 className="trip-card-title">{trip.title}</h3>
+          <div className="trip-card-info">
+            <div className="trip-info-item">
+              <span className="info-icon">📍</span>
+              {trip.destination}
+            </div>
+            <div className="trip-info-item">
+              <span className="info-icon">📅</span>
+              {new Date(trip.start_date).toLocaleDateString()} -{" "}
+              {new Date(trip.end_date).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+        <div className="trip-card-footer">
+          <span className="trip-card-cta">View Details →</span>
+        </div>
+      </div>
+    </Link>
   );
 };
 
