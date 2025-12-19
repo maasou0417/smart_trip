@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { tripsAPI } from "../api/api";
+import { useCurrentWeather } from "../hooks/useWeather";
 import type { TripFormData } from "../types";
+import WeatherCard from "../components/WeatherCard";
 
 const CreateTripPage = () => {
   const navigate = useNavigate();
@@ -13,6 +15,12 @@ const CreateTripPage = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Fetch weather preview when destination is entered
+  const { weather, loading: weatherLoading } = useCurrentWeather(
+    showPreview && formData.destination ? formData.destination : ""
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -67,7 +75,69 @@ const CreateTripPage = () => {
             placeholder="e.g., Paris, France"
             required
           />
+          {formData.destination && (
+            <button
+              type="button"
+              onClick={() => setShowPreview(!showPreview)}
+              style={{
+                marginTop: "0.5rem",
+                fontSize: "0.875rem",
+                padding: "0.5rem 1rem",
+                background: "var(--light-gray)",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                color: "var(--dark)",
+                fontWeight: 600,
+              }}
+            >
+              {showPreview ? "🙈 Hide" : "👁️ Preview"} Weather
+            </button>
+          )}
         </div>
+
+        {/* Weather Preview */}
+        {showPreview && formData.destination && (
+          <div style={{ marginBottom: "1.5rem" }}>
+            {weatherLoading ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "2rem",
+                  background: "var(--light-gray)",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                <div className="loading-spinner loading-spinner-medium">
+                  <div className="spinner"></div>
+                </div>
+                <p style={{ marginTop: "1rem", color: "var(--dark-gray)" }}>
+                  Loading weather...
+                </p>
+              </div>
+            ) : weather ? (
+              <div>
+                <h3 style={{ marginBottom: "1rem", color: "var(--dark)" }}>
+                  Current Weather Preview 🌤️
+                </h3>
+                <WeatherCard weather={weather} showDate={false} />
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: "#FFF3E0",
+                  padding: "1rem",
+                  borderRadius: "var(--radius-sm)",
+                  borderLeft: "4px solid #FF9800",
+                }}
+              >
+                <p style={{ color: "#E65100", margin: 0 }}>
+                  ℹ️ Weather data not available for this destination
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="form-row">
           <div className="form-group">
