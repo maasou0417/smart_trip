@@ -17,6 +17,11 @@ const TripDetailsPage = () => {
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
+  
+  // Loading states for individual actions
+  const [deletingTrip, setDeletingTrip] = useState(false);
+  const [togglingActivity, setTogglingActivity] = useState<number | null>(null);
+  const [deletingActivity, setDeletingActivity] = useState<number | null>(null);
 
   useEffect(() => {
     loadTrip();
@@ -24,10 +29,13 @@ const TripDetailsPage = () => {
 
   const loadTrip = async () => {
     try {
+      setError("");
       const data = await tripsAPI.getById(Number(id));
       setTrip(data);
-    } catch (err) {
-      setError("Failed to load trip");
+    } catch (err: any) {
+      console.error("Failed to load trip:", err);
+      const errorMsg = err.response?.data?.error || "Failed to load trip details";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -42,38 +50,62 @@ const TripDetailsPage = () => {
     : 0;
 
   // Fetch weather for trip destination
-  const { weather } = useWeather(
+  const { weather, loading: weatherLoading, error: weatherError, refetch: refetchWeather, retrying } = useWeather(
     trip?.destination || "",
     tripDays
   );
 
   const handleDeleteTrip = async () => {
-    if (!window.confirm("Are you sure you want to delete this trip?")) return;
+    if (!window.confirm("Are you sure you want to delete this trip? This will also delete all activities.")) return;
+    
+    setDeletingTrip(true);
+    setError("");
+    
     try {
       await tripsAPI.delete(Number(id));
-      navigate("/trips");
-    } catch (err) {
-      setError("Failed to delete trip");
+      showSuccess("Trip deleted successfully");
+      setTimeout(() => navigate("/trips"), 1000);
+    } catch (err: any) {
+      console.error("Delete trip error:", err);
+      const errorMsg = err.response?.data?.error || "Failed to delete trip. Please try again.";
+      setError(errorMsg);
+    } finally {
+      setDeletingTrip(false);
     }
   };
 
   const handleToggleComplete = async (activityId: number) => {
+    setTogglingActivity(activityId);
+    setError("");
+    
     try {
       await activitiesAPI.toggleComplete(activityId);
       await loadTrip();
-    } catch (err) {
-      setError("Failed to toggle activity");
+    } catch (err: any) {
+      console.error("Toggle activity error:", err);
+      const errorMsg = err.response?.data?.error || "Failed to update activity status";
+      setError(errorMsg);
+    } finally {
+      setTogglingActivity(null);
     }
   };
 
   const handleDeleteActivity = async (activityId: number) => {
     if (!window.confirm("Delete this activity?")) return;
+    
+    setDeletingActivity(activityId);
+    setError("");
+    
     try {
       await activitiesAPI.delete(activityId);
       await loadTrip();
-      showSuccess("Activity deleted");
-    } catch (err) {
-      setError("Failed to delete activity");
+      showSuccess("Activity deleted successfully");
+    } catch (err: any) {
+      console.error("Delete activity error:", err);
+      const errorMsg = err.response?.data?.error || "Failed to delete activity";
+      setError(errorMsg);
+    } finally {
+      setDeletingActivity(null);
     }
   };
 
@@ -87,14 +119,34 @@ const TripDetailsPage = () => {
     setTimeout(() => setSuccessMessage(""), 3000);
   };
 
-  if (loading) return <Loading message="Loading trip..." />;
+  // Loading state
+  if (loading) return <Loading message="Loading trip details..." />;
 
-  if (error || !trip) {
+  // Error state
+  if (error && !trip) {
     return (
       <div className="error-container">
         <div className="error-icon">❌</div>
         <h2 className="error-title">Oops!</h2>
-        <p className="error-message">{error || "Trip not found"}</p>
+        <p className="error-message">{error}</p>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", marginTop: "1.5rem" }}>
+          <button onClick={loadTrip} className="btn-primary">
+            Try Again
+          </button>
+          <Link to="/trips" className="btn-secondary">
+            Back to Trips
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!trip) {
+    return (
+      <div className="error-container">
+        <div className="error-icon">🔍</div>
+        <h2 className="error-title">Trip Not Found</h2>
+        <p className="error-message">This trip doesn't exist or you don't have access to it.</p>
         <Link to="/trips" className="btn-primary">
           Back to Trips
         </Link>
@@ -116,6 +168,7 @@ const TripDetailsPage = () => {
 
   return (
     <div>
+      {/* Success Message */}
       {successMessage && (
         <div className="success-container">
           <div className="success-content">
@@ -131,6 +184,27 @@ const TripDetailsPage = () => {
         </div>
       )}
 
+      {/* Error Message (for actions) */}
+      {error && trip && (
+        <div className="error-container" style={{ marginBottom: "1.5rem", padding: "1rem" }}>
+          <p className="error-message" style={{ margin: 0 }}>⚠️ {error}</p>
+          <button
+            onClick={() => setError("")}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "1.5rem",
+              padding: "0.25rem",
+              marginLeft: "1rem"
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Page Header */}
       <div className="page-header">
         <div>
           <h1>{trip.title}</h1>
@@ -155,11 +229,16 @@ const TripDetailsPage = () => {
               setEditingActivity(null);
             }}
             className="btn-primary"
+            disabled={deletingTrip}
           >
             ➕ Add Activity
           </button>
-          <button onClick={handleDeleteTrip} className="btn-secondary">
-            🗑️ Delete Trip
+          <button 
+            onClick={handleDeleteTrip} 
+            className="btn-secondary"
+            disabled={deletingTrip}
+          >
+            {deletingTrip ? "Deleting..." : "🗑️ Delete Trip"}
           </button>
         </div>
       </div>
@@ -189,11 +268,48 @@ const TripDetailsPage = () => {
 
       {/* Weather Widget */}
       {trip && (
-        <WeatherWidget
-          destination={trip.destination}
-          days={tripDays}
-          title={`Weather Forecast for ${trip.destination}`}
-        />
+        <div style={{ marginBottom: "2rem" }}>
+          {weatherError ? (
+            <div
+              style={{
+                background: "#FFF3CD",
+                border: "1px solid #FFC107",
+                padding: "1rem",
+                borderRadius: "var(--radius-md)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <p style={{ margin: 0, color: "var(--dark)", fontWeight: 600 }}>
+                  🌤️ {weatherError}
+                </p>
+                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.875rem", color: "var(--dark-gray)" }}>
+                  Trip planning works without weather data
+                </p>
+              </div>
+              <button
+                onClick={refetchWeather}
+                disabled={retrying}
+                className="btn-secondary"
+                style={{ padding: "0.5rem 1rem" }}
+              >
+                {retrying ? "Retrying..." : "Retry"}
+              </button>
+            </div>
+          ) : weatherLoading ? (
+            <div style={{ textAlign: "center", padding: "2rem", color: "var(--dark-gray)" }}>
+              <p>Loading weather forecast...</p>
+            </div>
+          ) : (
+            <WeatherWidget
+              destination={trip.destination}
+              days={tripDays}
+              title={`Weather Forecast for ${trip.destination}`}
+            />
+          )}
+        </div>
       )}
 
       {/* Add Form */}
@@ -202,10 +318,14 @@ const TripDetailsPage = () => {
           tripId={trip.id}
           maxDays={tripDays}
           onSuccess={async (data: ActivityFormData) => {
-            await activitiesAPI.create(data);
-            await loadTrip();
-            setShowActivityForm(false);
-            showSuccess("Activity added! 🎉");
+            try {
+              await activitiesAPI.create(data);
+              await loadTrip();
+              setShowActivityForm(false);
+              showSuccess("Activity added! 🎉");
+            } catch (err: any) {
+              throw err; // Let form handle the error
+            }
           }}
           onCancel={() => setShowActivityForm(false)}
         />
@@ -218,10 +338,14 @@ const TripDetailsPage = () => {
           maxDays={tripDays}
           activity={editingActivity}
           onSuccess={async (data: Partial<ActivityFormData>) => {
-            await activitiesAPI.update(editingActivity.id, data);
-            await loadTrip();
-            setEditingActivity(null);
-            showSuccess("Activity updated! ✅");
+            try {
+              await activitiesAPI.update(editingActivity.id, data);
+              await loadTrip();
+              setEditingActivity(null);
+              showSuccess("Activity updated! ✅");
+            } catch (err: any) {
+              throw err; // Let form handle the error
+            }
           }}
           onCancel={() => setEditingActivity(null)}
         />
@@ -232,7 +356,7 @@ const TripDetailsPage = () => {
         <div className="empty-state">
           <div className="empty-state-icon">📝</div>
           <h3 className="empty-state-title">No activities yet</h3>
-          <p className="empty-state-message">Start planning!</p>
+          <p className="empty-state-message">Start planning your perfect trip!</p>
           <button
             onClick={() => setShowActivityForm(true)}
             className="btn-primary"
@@ -262,6 +386,8 @@ const TripDetailsPage = () => {
                 onToggleComplete={handleToggleComplete}
                 onEdit={handleEditActivity}
                 onDelete={handleDeleteActivity}
+                togglingActivity={togglingActivity}
+                deletingActivity={deletingActivity}
               />
             );
           })}
@@ -304,6 +430,8 @@ const DaySection = ({
   onToggleComplete,
   onEdit,
   onDelete,
+  togglingActivity,
+  deletingActivity,
 }: any) => (
   <div>
     <div
@@ -345,6 +473,8 @@ const DaySection = ({
             onToggleComplete={onToggleComplete}
             onEdit={onEdit}
             onDelete={onDelete}
+            isToggling={togglingActivity === activity.id}
+            isDeleting={deletingActivity === activity.id}
           />
         ))}
       </div>
@@ -369,6 +499,8 @@ const ActivityCard = ({
   onToggleComplete,
   onEdit,
   onDelete,
+  isToggling,
+  isDeleting,
 }: any) => {
   const getCategoryInfo = () => {
     return (
@@ -478,16 +610,18 @@ const ActivityCard = ({
           className="btn-icon"
           onClick={() => onToggleComplete(activity.id)}
           title={activity.completed ? "Mark incomplete" : "Mark complete"}
+          disabled={isToggling || isDeleting}
           style={{
             color: activity.completed ? "#4CAF50" : "var(--dark-gray)",
           }}
         >
-          {activity.completed ? "✅" : "⭕"}
+          {isToggling ? "⏳" : activity.completed ? "✅" : "⭕"}
         </button>
         <button
           className="btn-icon btn-edit"
           onClick={() => onEdit(activity)}
           title="Edit activity"
+          disabled={isToggling || isDeleting}
         >
           ✏️
         </button>
@@ -495,8 +629,9 @@ const ActivityCard = ({
           className="btn-icon btn-delete"
           onClick={() => onDelete(activity.id)}
           title="Delete activity"
+          disabled={isToggling || isDeleting}
         >
-          🗑️
+          {isDeleting ? "⏳" : "🗑️"}
         </button>
       </div>
     </div>
@@ -542,6 +677,18 @@ const ActivityFormWrapper = ({
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setError("");
+    
+    // Basic validation
+    if (!formData.title.trim()) {
+      setError("Title is required");
+      return;
+    }
+    
+    if (formData.day_number < 1 || formData.day_number > maxDays) {
+      setError(`Day must be between 1 and ${maxDays}`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -556,7 +703,9 @@ const ActivityFormWrapper = ({
       };
       await onSuccess(submitData);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to save activity");
+      console.error("Form submission error:", err);
+      const errorMsg = err.response?.data?.error || "Failed to save activity. Please try again.";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -565,7 +714,20 @@ const ActivityFormWrapper = ({
   return (
     <div className="form-container" style={{ marginBottom: "2rem" }}>
       <h2>{activity ? "✏️ Edit Activity" : "➕ Add Activity"}</h2>
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div 
+          className="error-message" 
+          style={{ 
+            background: "#FFE5E5", 
+            color: "#C62828", 
+            padding: "1rem", 
+            borderRadius: "var(--radius-sm)",
+            marginBottom: "1rem"
+          }}
+        >
+          ⚠️ {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="activity-form">
         <div className="form-row">
@@ -581,6 +743,7 @@ const ActivityFormWrapper = ({
               value={formData.day_number}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -590,6 +753,7 @@ const ActivityFormWrapper = ({
               name="time"
               value={formData.time}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
         </div>
@@ -603,6 +767,8 @@ const ActivityFormWrapper = ({
             onChange={handleChange}
             placeholder="e.g., Visit Eiffel Tower"
             required
+            disabled={loading}
+            maxLength={200}
           />
         </div>
 
@@ -612,6 +778,7 @@ const ActivityFormWrapper = ({
             name="category"
             value={formData.category}
             onChange={handleChange}
+            disabled={loading}
           >
             <option value="">Select category</option>
             {ACTIVITY_CATEGORIES.map((cat) => (
@@ -631,6 +798,7 @@ const ActivityFormWrapper = ({
               value={formData.location}
               onChange={handleChange}
               placeholder="e.g., Champ de Mars, Paris"
+              disabled={loading}
             />
           </div>
           <div className="form-group">
@@ -643,6 +811,7 @@ const ActivityFormWrapper = ({
               value={formData.cost}
               onChange={handleChange}
               placeholder="0.00"
+              disabled={loading}
             />
           </div>
         </div>
@@ -653,7 +822,8 @@ const ActivityFormWrapper = ({
             name="description"
             value={formData.description}
             onChange={handleChange}
-            placeholder="Details..."
+            placeholder="Details about this activity..."
+            disabled={loading}
           />
         </div>
 
@@ -663,8 +833,9 @@ const ActivityFormWrapper = ({
             name="notes"
             value={formData.notes}
             onChange={handleChange}
-            placeholder="Booking info, tips..."
+            placeholder="Booking info, tips, reminders..."
             style={{ minHeight: "80px" }}
+            disabled={loading}
           />
         </div>
 
@@ -678,7 +849,7 @@ const ActivityFormWrapper = ({
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? "Saving..." : activity ? "Update" : "Add Activity"}
+            {loading ? "Saving..." : activity ? "Update Activity" : "Add Activity"}
           </button>
         </div>
       </form>
