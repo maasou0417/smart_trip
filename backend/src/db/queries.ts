@@ -12,6 +12,17 @@ import {
 
 
 
+export const getActivityById = async (
+  activityId: number
+): Promise<Activity | null> => {
+  const result = await pool.query(
+    "SELECT * FROM activities WHERE id = $1",
+    [activityId]
+  );
+  return result.rows[0] || null;
+};
+
+
 // USER QUERIES  - 
 
 export const createUser = async (userData: CreateUserDto): Promise<User> => {
