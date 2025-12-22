@@ -9,6 +9,7 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: false,
 });
 
 // General API rate limiter
@@ -20,4 +21,22 @@ export const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+});
+
+
+export const weatherLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: {
+    error: "Too many weather requests... Please wait a moment & try again",
+
+  }, 
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+
+  keyGenerator: (req) => {
+    const authReq = req as any;
+    return authReq.userId ? `user_${authReq.userId}` : req.ip || " unknown";
+  },
 });
