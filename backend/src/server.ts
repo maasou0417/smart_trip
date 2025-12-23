@@ -9,6 +9,7 @@ import tripRoutes from "./routes/trips";
 import activityRoutes from "./routes/activities";
 import itineraryRoutes from "./routes/itinerary";
 import weatherRoutes from "./routes/weather";
+import { weatherLimiter } from "./middleware/rateLimiter";
 
 
 dotenv.config();
@@ -44,7 +45,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/trips", tripRoutes);
 app.use("/api/activities", activityRoutes);
 app.use("/api/itinerary", itineraryRoutes);
-app.use("/api/weather", weatherRoutes);
+app.use("/api/weather", weatherLimiter, weatherRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
