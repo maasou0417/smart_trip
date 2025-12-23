@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import mapIcon from "../assets/icons/SmartTrip Icon.jpg";
+import MobileMenu from "./MobileMenu";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -18,7 +19,9 @@ const Navbar = () => {
           <h2>Smart Trip</h2>
         </Link>
 
-        <div className="nav-links">
+        {/* Desktop NAv */ }
+        
+        <div className="nav-links desktop nav">
           {user ? (
             <>
               <Link to="/trips" className="nav-link">
@@ -42,6 +45,9 @@ const Navbar = () => {
             </>
           )}
         </div>
+
+         {/* Mobile Menu */ }
+         <MobileMenu/>
       </div>
     </nav>
   );
