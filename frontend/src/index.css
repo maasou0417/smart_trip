@@ -1952,3 +1952,120 @@ input[type="time"] {
 .trip-form .form-row {
   margin-bottom: var(--spacing-md);
 }
+
+
+
+/* Remove default outline */
+*:focus {
+  outline: none;
+}
+
+/* Focus Style - cisible only for keyboard users */
+*:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Focus styles for specific elements */
+button:focus-visible,
+.btn:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+}
+
+a:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Focus trap for modals */
+[role="dialog"] {
+  backdrop-filter: blur(4px);
+}
+
+.activity-form {
+  padding: 0;
+}
+
+.activity-form .form-group {
+  margin-bottom: 1rem;
+}
+
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* Skip link focus */
+.skip-link:focus {
+  left: 0 !important;
+  top: 0 !important;
+  z-index: 10000;
+}
+
+/* Focus within for containers */
+.trip-card:focus-within,
+.activity-card:focus-within {
+  box-shadow: 0 0 0 3px rgba(255, 107, 52, 0.3);
+}
+
+/* Screen reader onlu content */
+.sr-only {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+
+/* Focus indicators for custom controls */
+.btn-icon:focus-visible {
+  background: var(--light-gray);
+  transform: scale(1.1);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  *:focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
+  }
+
+  button,
+  .btn {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
