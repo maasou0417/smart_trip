@@ -91,7 +91,7 @@ const LoginPage = () => {
 
       {error && <div className="error-message">{error}</div>}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} aria-label="Login form">
         <div>
           <label htmlFor="email">Email</label>
           <input
@@ -105,6 +105,10 @@ const LoginPage = () => {
             onBlur={handleEmailBlur}
             placeholder="your@email.com"
             disabled={loading}
+            aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
+            aria-required="true"
+            autoComplete="email"
             style={{
               borderColor: fieldErrors.email
                 ? "#D32F2F"
@@ -114,6 +118,9 @@ const LoginPage = () => {
           />
           {fieldErrors.email && (
             <p
+            id="email-error"
+            role="alert"
+            aria-live="polite"
               style={{
                 color: "#D32F2F",
                 fontSize: "0.875rem",
@@ -144,6 +151,10 @@ const LoginPage = () => {
       }}
       placeholder="Enter your password"
       disabled={loading}
+      aria-invalid={!!fieldErrors.password}
+      aria-describedby={fieldErrors.password ? "password-error" : undefined}
+      aria-required="true"
+      autoComplete="current-password"
       style={{
         width: "100%",                       // match container exactly
         borderColor: fieldErrors.password ? "#D32F2F" : "var(--light-gray)",
@@ -156,6 +167,8 @@ const LoginPage = () => {
     <button
       type="button"
       onClick={() => setShowPassword(!showPassword)}
+      aria-label={showPassword ? "Hide password" : "ShowPassword"}
+      aria-pressed={showPassword}
       style={{
         position: "absolute",
         right: "0.75rem",
@@ -174,22 +187,36 @@ const LoginPage = () => {
       }}
       disabled={loading}
     >
-      {showPassword ? "🙈" : "👁️"}
+      <span aria-hidden="true">{showPassword ? "🙈" : "👁️"}</span>
     </button>
   </div>
 
   {fieldErrors.password && (
-    <p style={{ color: "#D32F2F", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+    <p 
+    id="password-error"
+    role="alert"
+    aria-live="polite"
+    style={{
+     color: "#D32F2F", 
+    fontSize: "0.875rem",
+     marginTop: "0.25rem" }}>
       {fieldErrors.password}
     </p>
   )}
 </div>
 
 
-        <button type="submit" disabled={loading}>
+        <button
+         type="submit" 
+         disabled={loading}
+         aria-busy={loading}
+         >
           {loading ? (
-            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center" }}>
-              <span className="inline-loader">⏳</span>
+            <span style={{ display: "flex", 
+            alignItems: "center",
+             gap: "0.5rem",
+              justifyContent: "center" }}>
+              <span className="inline-loader" aria-hidden="true">⏳</span>
               Logging in...
             </span>
           ) : (
