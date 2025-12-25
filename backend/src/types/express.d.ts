@@ -7,16 +7,10 @@ declare global {
       user?: {
         id: number;
         email: string;
-        name?: string;
+        name: string;
       };
     }
   }
 }
 
-export interface AuthRequest extends Request {
-  userId?: number;
-  user?: {
-    id: number;
-    email: string;
-  };
-}
+export {};
