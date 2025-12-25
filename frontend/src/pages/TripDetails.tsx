@@ -7,6 +7,7 @@ import Loading from "../components/Loading";
 import { useWeather } from "../hooks/useWeather";
 import WeatherWidget from "../components/WeatherWidget";
 import WeatherBadge from "../components/WeatherBadge";
+import Modal from "../components/Modal";
 
 const TripDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +15,7 @@ const TripDetailsPage = () => {
   const [trip, setTrip] = useState<TripWithActivities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showActivityForm, setShowActivityForm] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
   
@@ -50,7 +51,7 @@ const TripDetailsPage = () => {
     : 0;
 
   // Fetch weather for trip destination
-  const { weather, loading: weatherLoading, error: weatherError, refetch: refetchWeather, retrying } = useWeather(
+  const { loading: weatherLoading, error: weatherError, refetch: refetchWeather, retrying } = useWeather(
     trip?.destination || "",
     tripDays
   );
@@ -111,7 +112,7 @@ const TripDetailsPage = () => {
 
   const handleEditActivity = (activity: Activity) => {
     setEditingActivity(activity);
-    setShowActivityForm(false);
+    setShowActivityModal(false);
   };
 
   const showSuccess = (message: string) => {
@@ -129,7 +130,10 @@ const TripDetailsPage = () => {
         <div className="error-icon">❌</div>
         <h2 className="error-title">Oops!</h2>
         <p className="error-message">{error}</p>
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", marginTop: "1.5rem" }}>
+        <div style={{ display: "flex",
+           gap: "1rem", 
+           justifyContent: "center", 
+           marginTop: "1.5rem" }}>
           <button onClick={loadTrip} className="btn-primary">
             Try Again
           </button>
@@ -167,7 +171,7 @@ const TripDetailsPage = () => {
   const completedActivities = trip.activities.filter((a) => a.completed).length;
 
   return (
-    <div>
+    <article aria-labelledby="trip-title">
       {/* Success Message */}
       {successMessage && (
         <div className="success-container">
@@ -205,9 +209,9 @@ const TripDetailsPage = () => {
       )}
 
       {/* Page Header */}
-      <div className="page-header">
+      <header className="page-header">
         <div>
-          <h1>{trip.title}</h1>
+          <h1 id="trip-title">{trip.title}</h1>
           <p
             style={{
               fontSize: "1.125rem",
@@ -225,7 +229,7 @@ const TripDetailsPage = () => {
         <div style={{ display: "flex", gap: "1rem" }}>
           <button
             onClick={() => {
-              setShowActivityForm(!showActivityForm);
+              setShowActivityModal(true)
               setEditingActivity(null);
             }}
             className="btn-primary"
@@ -241,30 +245,33 @@ const TripDetailsPage = () => {
             {deletingTrip ? "Deleting..." : "🗑️ Delete Trip"}
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "1rem",
-          marginBottom: "2rem",
-        }}
-      >
-        <StatCard icon="📝" value={trip.activities.length} label="Activities" />
-        <StatCard
-          icon="✅"
-          value={`${completedActivities}/${trip.activities.length}`}
-          label="Completed"
-        />
-        <StatCard
-          icon="💰"
-          value={`€${totalCost.toFixed(2)}`}
-          label="Total Cost"
-          color="var(--primary)"
-        />
-      </div>
+      <section aria-labelledby="trip-stats">
+        <h2 id="trip-stats" className="sr-only">Trip Statistics</h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "1rem",
+            marginBottom: "2rem",
+          }}
+        >
+          <StatCard icon="📝" value={trip.activities.length} label="Activities" />
+          <StatCard
+            icon="✅"
+            value={`${completedActivities}/${trip.activities.length}`}
+            label="Completed"
+          />
+          <StatCard
+            icon="💰"
+            value={`€${totalCost.toFixed(2)}`}
+            label="Total Cost"
+            color="var(--primary)"
+          />
+        </div>
+      </section>
 
       {/* Weather Widget */}
       {trip && (
@@ -312,88 +319,78 @@ const TripDetailsPage = () => {
         </div>
       )}
 
-      {/* Add Form */}
-      {showActivityForm && (
+      {/* Add Activity Modal */}
+
+    <Modal
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        title="➕ Add Activity"
+      >
         <ActivityFormWrapper
           tripId={trip.id}
           maxDays={tripDays}
           onSuccess={async (data: ActivityFormData) => {
-            try {
-              await activitiesAPI.create(data);
-              await loadTrip();
-              setShowActivityForm(false);
-              showSuccess("Activity added! 🎉");
-            } catch (err: any) {
-              throw err; // Let form handle the error
-            }
+            await activitiesAPI.create(data);
+            await loadTrip();
+            setShowActivityModal(false);
+            showSuccess("Activity added! 🎉");
           }}
-          onCancel={() => setShowActivityForm(false)}
+          onCancel={() => setShowActivityModal(false)}
         />
-      )}
+      </Modal>
 
-      {/* Edit Form */}
+      {/* Edit Activity Modal */}
+      <Modal
+      isOpen={!!editingActivity}
+      onClose={() => setEditingActivity(null)}
+      title="✏️ Edit Activity">
+
       {editingActivity && (
-        <ActivityFormWrapper
-          tripId={trip.id}
-          maxDays={tripDays}
-          activity={editingActivity}
-          onSuccess={async (data: Partial<ActivityFormData>) => {
-            try {
-              await activitiesAPI.update(editingActivity.id, data);
-              await loadTrip();
-              setEditingActivity(null);
-              showSuccess("Activity updated! ✅");
-            } catch (err: any) {
-              throw err; // Let form handle the error
-            }
-          }}
-          onCancel={() => setEditingActivity(null)}
-        />
-      )}
+      <ActivityFormWrapper
+      tripId={trip.id}
+      maxDays={tripDays}
+      activity={editingActivity}
+      onSuccess={async (data: Partial<ActivityFormData>) => {
+        await activitiesAPI.update(editingActivity.id, data);
+        await loadTrip();
+        setEditingActivity(null);
+        showSuccess("Activity updated! ✅");
+      }}
+      onCancel={() => setEditingActivity(null)} /> )}
+    </Modal>
+
 
       {/* Activities */}
-      {trip.activities.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📝</div>
-          <h3 className="empty-state-title">No activities yet</h3>
-          <p className="empty-state-message">Start planning your perfect trip!</p>
-          <button
-            onClick={() => setShowActivityForm(true)}
-            className="btn-primary"
-          >
-            Add Your First Activity
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-          {Array.from({ length: tripDays }, (_, i) => i + 1).map((day) => {
-            const dayActivities = activitiesByDay[day] || [];
-            const dayCost = dayActivities.reduce(
-              (sum, a) => sum + Number(a.cost || 0),
-              0
-            );
-            
-            // Get weather for this day
-            const dayWeather = weather?.forecast[day - 1];
+          <div style={{ display: "flex",
+           flexDirection: "column",
+            gap: "2rem" }}>
+            {Array.from({ length: tripDays },
+             (_, i) => i + 1).map((day) => {
+              const dayActivities = activitiesByDay[day] || [];
+              const dayCost = dayActivities.reduce(
+                (sum, a) => sum + Number(a.cost || 0),
+                0
+              );
+              
+           // Get weather for this day
+          // const dayWeather = weather?.forecast[day - 1];
 
-            return (
-              <DaySection
-                key={day}
-                day={day}
-                activities={dayActivities}
-                dayCost={dayCost}
-                weather={dayWeather}
-                onToggleComplete={handleToggleComplete}
-                onEdit={handleEditActivity}
-                onDelete={handleDeleteActivity}
-                togglingActivity={togglingActivity}
-                deletingActivity={deletingActivity}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
+          return (
+            <DaySection
+              key={day}
+              day={day}
+              activities={dayActivities}
+              dayCost={dayCost}
+              onToggleComplete={handleToggleComplete}
+              onEdit={handleEditActivity}
+              onDelete={handleDeleteActivity}
+              togglingActivity={togglingActivity}
+              deletingActivity={deletingActivity}
+            />
+          );
+        })}
+      </div>
+    </article>
   );
 };
 
