@@ -1,5 +1,6 @@
 import rateLimit from "express-rate-limit";
 
+
 // Auth rate limiter - login/register
 export const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minuter
@@ -35,8 +36,8 @@ export const weatherLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
 
-  keyGenerator: (req) => {
+  skip: (req) => {
     const authReq = req as any;
-    return authReq.userId ? `user_${authReq.userId}` : req.ip || " unknown";
+    return false;
   },
 });
