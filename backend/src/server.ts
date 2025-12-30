@@ -21,8 +21,7 @@ const PORT = process.env.PORT || 8080;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  process.env.FRONTEND_URL || "",
-].filter(Boolean);
+  process.env.FRONTEND_URL || "https://smart-trip-frontend.onrender.com" ];
 
 // Middleware
 app.use(
@@ -34,6 +33,7 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.warn("Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
