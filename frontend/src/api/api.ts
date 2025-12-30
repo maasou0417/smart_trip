@@ -13,7 +13,7 @@ import type {
   WeatherData,
 } from "../types/index";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL + "/api" ;
 
 // Axios instance
 const api = axios.create({
