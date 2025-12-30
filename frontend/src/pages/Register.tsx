@@ -34,6 +34,8 @@ const RegisterPage = () => {
     }
   }, [user, navigate]);
 
+  /*
+
   const handleNameBlur = () => {
     const validation = validateName(name);
     setFieldErrors((prev) => ({
@@ -58,6 +60,9 @@ const RegisterPage = () => {
     }));
   };
 
+
+  */
+ 
   const handleConfirmPasswordBlur = () => {
     if (confirmPassword && password !== confirmPassword) {
       setFieldErrors((prev) => ({

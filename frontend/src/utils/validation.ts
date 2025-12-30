@@ -83,7 +83,6 @@ export const getPasswordStrength = (
   feedback: string;
 } => {
   let score = 0;
-  let feedback = "";
 
   if (password.length >= 8) score += 1;
   if (password.length >= 12) score += 1;
